@@ -20,20 +20,61 @@ async function fetchWeather({ city, lat, lon, key }) {
   return await res.json();
 }
 
-// --- Helper: Generate AI response using Gemini ---
-async function generateAI({ messages, geminiKey }) {
+// --- Enhanced Helper: Generate AI response using Gemini with conversation history ---
+async function generateAI({ messages, geminiKey, sessionId, lang = "en-US" }) {
   try {
+    // If sessionId is provided, fetch conversation history
+    let conversationHistory = [];
+    if (sessionId) {
+      const chatHistory = await Chat.find({ sessionId })
+        .sort({ timestamp: 1 }) // Sort chronologically
+        .limit(20) // Limit to last 20 messages to avoid token limits
+        .lean();
+      
+      // Convert chat history to Gemini format, excluding the current message
+      conversationHistory = chatHistory.map(chat => ({
+        role: chat.role === 'user' ? 'user' : 'model',
+        parts: [{ text: chat.text }]
+      }));
+    }
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
 
-    // Prepare the request payload
-    const contents = messages.map(msg => ({
+    // Prepare the request payload with conversation history
+    let contents = [];
+    
+    // Add conversation history first
+    if (conversationHistory.length > 0) {
+      contents = [...conversationHistory];
+    }
+    
+    // Add new messages
+    const newMessages = messages.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
       parts: [{ text: msg.content }]
     }));
+    
+    contents = [...contents, ...newMessages];
+
+    // Add system instruction for conversation continuity
+    const systemInstruction = lang.startsWith("ja") 
+      ? "あなたは親切なアシスタントです。過去の会話を覚えており、それを参考に返答してください。ユーザーが「それ」「あれ」「前に言った」などと言った場合は、会話履歴から適切な情報を参照してください。"
+      : "You are a helpful assistant. Remember our previous conversation and reference it when relevant. If the user refers to 'that', 'it', 'what you said before', etc., use the conversation history for context.";
+
+    // Insert system instruction at the beginning if we have conversation history
+    if (conversationHistory.length > 0) {
+      contents.unshift({
+        role: 'user',
+        parts: [{ text: systemInstruction }]
+      });
+    }
 
     const body = { contents };
 
-    console.log('Sending request to Gemini API:', JSON.stringify(body, null, 2));
+    console.log('Sending request to Gemini API with conversation history:', JSON.stringify({
+      historyLength: conversationHistory.length,
+      totalMessages: contents.length
+    }, null, 2));
 
     const response = await fetch(url, {
       method: 'POST',
@@ -42,7 +83,7 @@ async function generateAI({ messages, geminiKey }) {
     });
 
     const data = await response.json();
-    console.log('Gemini API response:', JSON.stringify(data, null, 2));
+    console.log('Gemini API response status:', response.status);
 
     if (!response.ok) {
       throw new Error(`Gemini API error: ${data.error?.message || 'Unknown error'}`);
@@ -200,7 +241,7 @@ router.get("/test-weather", async (req, res) => {
   }
 });
 
-// --- POST /api/generate ---
+// --- Enhanced POST /api/generate with conversation memory ---
 router.post("/generate", async (req, res) => {
   let session;
   try {
@@ -252,7 +293,7 @@ router.post("/generate", async (req, res) => {
       }
     }
 
-    // Save user message to database
+    // Save user message to database BEFORE generating AI response
     const userMessage = new Chat({
       sessionId,
       sessionName: sessionName || 'New Chat',
@@ -266,31 +307,43 @@ router.post("/generate", async (req, res) => {
 
     await userMessage.save({ session });
 
-    // Generate AI response
-    const messages = [
-      { role: "user", content: "You are a helpful assistant." },
-      { role: "user", content: message }
-    ];
+    // Prepare messages for AI with enhanced context
+    let systemMessage = lang.startsWith("ja")
+      ? "あなたは親切で役立つアシスタントです。天気情報とユーザーとの会話履歴を活用して、適切で個人化された回答を提供してください。"
+      : "You are a helpful assistant. Use weather information and conversation history to provide relevant, personalized responses.";
 
+    let userPrompt = message;
+
+    // Add weather context if available
     if (city && weatherData) {
       const weatherInfo = lang.startsWith("ja") 
-        ? `現在の${city}の天気情報：\n` +
+        ? `\n\n現在の${city}の天気情報：\n` +
           `- 天気: ${weatherData.description}\n` +
-          `- 気温: ${weatherData.temperature}°C (体感 ${weatherData.feelsLike}°C)`
-        : `Current weather in ${city}:\n` +
+          `- 気温: ${weatherData.temperature}°C (体感 ${weatherData.feelsLike}°C)\n` +
+          `- 湿度: ${weatherData.humidity}%\n` +
+          `- 風速: ${weatherData.windSpeed} km/h (${weatherData.windDirection})\n` +
+          `- 視界: ${weatherData.visibility}`
+        : `\n\nCurrent weather in ${city}:\n` +
           `- Weather: ${weatherData.description.charAt(0).toUpperCase() + weatherData.description.slice(1)}\n` +
-          `- Temperature: ${weatherData.temperature}°C (Feels like ${weatherData.feelsLike}°C)`;
+          `- Temperature: ${weatherData.temperature}°C (Feels like ${weatherData.feelsLike}°C)\n` +
+          `- Humidity: ${weatherData.humidity}%\n` +
+          `- Wind: ${weatherData.windSpeed} km/h (${weatherData.windDirection})\n` +
+          `- Visibility: ${weatherData.visibility}`;
       
-      messages[0].content = lang.startsWith("ja")
-        ? `あなたは親切で役立つアシスタントです。${city}に関する質問に答える際は、以下の天気情報を参考にしてください。`
-        : `You are a helpful assistant. When answering questions about ${city}, please consider the following weather information.`;
-      
-      messages[1].content = `${message}\n\n${weatherInfo}`;
+      userPrompt += weatherInfo;
     }
 
+    const messages = [
+      { role: "model", content: systemMessage },
+      { role: "user", content: userPrompt }
+    ];
+
+    // Generate AI response with conversation history
     const aiResponse = await generateAI({ 
       messages, 
-      geminiKey: GEMINI_KEY 
+      geminiKey: GEMINI_KEY,
+      sessionId: sessionId, // Pass sessionId for conversation history
+      lang 
     });
 
     // Save AI response to database
@@ -312,7 +365,10 @@ router.post("/generate", async (req, res) => {
       ok: true, 
       output: aiResponse,
       city: city || null,
-      weather: weatherData
+      weather: weatherData,
+      sessionId,
+      sessionName,
+      isNewSession
     });
 
   } catch (error) {
@@ -444,9 +500,54 @@ router.put("/sessions/:sessionId/rename", async (req, res) => {
   }
 });
 
+// --- New endpoint: Get conversation summary for long chats ---
+router.get("/sessions/:sessionId/summary", async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    
+    const chatHistory = await Chat.find({ sessionId })
+      .sort({ timestamp: 1 })
+      .lean();
+
+    if (chatHistory.length === 0) {
+      return res.json({ ok: true, summary: 'No conversation history found.' });
+    }
+
+    // Create summary of key topics discussed
+    const conversationText = chatHistory
+      .map(chat => `${chat.role}: ${chat.text}`)
+      .join('\n');
+
+    const summaryPrompt = `Summarize the key topics and important information from this conversation in 2-3 sentences:
+
+${conversationText}`;
+
+    const GEMINI_KEY = process.env.GEMINI_API_KEY;
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [{ text: summaryPrompt }]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const summary = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Unable to generate summary.';
+
+    res.json({ ok: true, summary });
+
+  } catch (error) {
+    console.error('Error generating conversation summary:', error);
+    res.status(500).json({ ok: false, error: 'Failed to generate summary' });
+  }
+});
+
 // --- Health check ---
 router.get("/", (req, res) => {
-  res.send("API is running");
+  res.send("API is running with conversation memory");
 });
 
 // --- GET /api/chats?sessionId=...&search=... ---
