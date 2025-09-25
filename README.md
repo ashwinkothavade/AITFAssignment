@@ -54,7 +54,7 @@ A sophisticated full-stack web application featuring an intelligent conversation
 │   │   │   ├── VoiceInputButton.jsx # Japanese voice input
 │   │   │   └── LanguageSelector.jsx # Language switching
 │   │   ├── contexts/
-│   │   │   └── ThemeContext.js     # Dark/Light mode
+│   │   │   └── Context.js     # Dark/Light mode
 │   │   └── App.js                  # Main application
 ├── backend/
 │   ├── routes/

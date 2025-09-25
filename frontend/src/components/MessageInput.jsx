@@ -99,7 +99,7 @@ export default function MessageInput({ lang, onSend, city, disabled, isLoading }
         </button>
       </div>
       
-      <div className={`mt-2 text-xs text-center ${
+      {/* <div className={`mt-2 text-xs text-center ${
         darkMode ? 'text-gray-400' : 'text-gray-500'
       }`}>
         {disabled ? (
@@ -107,7 +107,7 @@ export default function MessageInput({ lang, onSend, city, disabled, isLoading }
         ) : (
           <span>{lang === "ja-JP" ? "Shift + Enter で改行" : "Shift + Enter for new line"}</span>
         )}
-      </div>
+      </div> */}
     </form>
   );
 }

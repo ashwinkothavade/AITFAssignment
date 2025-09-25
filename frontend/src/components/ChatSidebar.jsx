@@ -1,13 +1,24 @@
-import { useState, useEffect, useRef } from "react";
-import { PlusIcon, MagnifyingGlassIcon, XMarkIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { useState, useEffect, useRef, useContext } from "react";
+import {
+  PlusIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
+  PencilIcon,
+  TrashIcon,
+} from "@heroicons/react/24/outline";
 import { ThemeContext } from "../App";
-import { useContext } from "react";
+import {
+  getSessions,
+  searchMessages as apiSearch,
+  renameSession as apiRename,
+  deleteSession as apiDelete,
+} from "../api";
 
-export default function ChatSidebar({ 
-  currentSessionId, 
-  onSelectSession, 
+export default function ChatSidebar({
+  currentSessionId,
+  onSelectSession,
   onNewChat,
-  className = ""
+  className = "",
 }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,8 +32,7 @@ export default function ChatSidebar({
   // Fetch chat sessions
   const fetchSessions = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/sessions");
-      const data = await response.json();
+      const data = await getSessions();
       if (data.ok) {
         setSessions(data.sessions);
       }
@@ -42,15 +52,7 @@ export default function ChatSidebar({
     }
 
     try {
-      const response = await fetch("http://localhost:5000/api/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          query: searchQuery,
-          sessionId: currentSessionId || 'all'
-        }),
-      });
-      const data = await response.json();
+      const data = await apiSearch(searchQuery, currentSessionId || "all");
       if (data.ok) {
         setSearchResults(data.results);
       }
@@ -63,17 +65,12 @@ export default function ChatSidebar({
   const handleDeleteSession = async (sessionId, e) => {
     e.stopPropagation();
     if (!window.confirm("Are you sure you want to delete this chat?")) return;
-    
+
     try {
-      const response = await fetch(`http://localhost:5000/api/sessions/${sessionId}`, {
-        method: "DELETE",
-      });
-      
-      if (response.ok) {
-        setSessions(prev => prev.filter(s => s.id !== sessionId));
-        if (sessionId === currentSessionId) {
-          onNewChat();
-        }
+      await apiDelete(sessionId);
+      setSessions((prev) => prev.filter((s) => s._id !== sessionId));
+      if (sessionId === currentSessionId) {
+        onNewChat();
       }
     } catch (error) {
       console.error("Error deleting session:", error);
@@ -87,29 +84,23 @@ export default function ChatSidebar({
       setEditingSessionId(null);
       return;
     }
-    
+
     try {
-      const response = await fetch(`http://localhost:5000/api/sessions/${sessionId}/rename`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editingName }),
-      });
-      
-      const data = await response.json();
-      
+      const data = await apiRename(sessionId, editingName);
+
       if (data.ok) {
         // Update the sessions list with the new name
-        setSessions(prev => 
-          prev.map(session => 
-            session._id === sessionId 
-              ? { ...session, sessionName: data.sessionName } 
+        setSessions((prev) =>
+          prev.map((session) =>
+            session._id === sessionId
+              ? { ...session, sessionName: data.sessionName }
               : session
           )
         );
       } else {
         console.error("Failed to update session name:", data.error);
         // Revert to the original name if update fails
-        const originalSession = sessions.find(s => s._id === sessionId);
+        const originalSession = sessions.find((s) => s._id === sessionId);
         if (originalSession) {
           setEditingName(originalSession.sessionName);
         }
@@ -117,7 +108,7 @@ export default function ChatSidebar({
     } catch (error) {
       console.error("Error updating session name:", error);
       // Revert to the original name on error
-      const originalSession = sessions.find(s => s._id === sessionId);
+      const originalSession = sessions.find((s) => s._id === sessionId);
       if (originalSession) {
         setEditingName(originalSession.sessionName);
       }
@@ -130,8 +121,8 @@ export default function ChatSidebar({
   const startEditing = (session, e) => {
     e.stopPropagation();
     setEditingSessionId(session._id);
-    setEditingName(session.sessionName || '');
-    
+    setEditingName(session.sessionName || "");
+
     // Focus the input after a small delay to ensure it's rendered
     setTimeout(() => {
       if (editInputRef.current) {
@@ -143,9 +134,9 @@ export default function ChatSidebar({
 
   // Handle key down in edit input
   const handleKeyDown = (e, sessionId) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleUpdateSessionName(sessionId, e);
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       setEditingSessionId(null);
       setEditingName("");
     }
@@ -159,26 +150,30 @@ export default function ChatSidebar({
   // Close edit mode when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (editingSessionId && !e.target.closest('.editable-item')) {
+      if (editingSessionId && !e.target.closest(".editable-item")) {
         setEditingSessionId(null);
         setEditingName("");
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [editingSessionId]);
 
   return (
-    <div className={`flex flex-col h-full ${darkMode ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'} ${className}`}>
+    <div
+      className={`flex flex-col h-full ${
+        darkMode ? "bg-gray-800 text-gray-100" : "bg-white text-gray-900"
+      } ${className}`}
+    >
       {/* Header */}
-      <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+      <div className={`p-4 border-b ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
         <button
           onClick={onNewChat}
           className={`w-full flex items-center justify-center space-x-2 py-2 px-4 rounded-lg ${
-            darkMode 
-              ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-              : 'bg-blue-500 hover:bg-blue-600 text-white'
+            darkMode
+              ? "bg-blue-600 hover:bg-blue-700 text-white"
+              : "bg-blue-500 hover:bg-blue-600 text-white"
           } transition-colors`}
         >
           <PlusIcon className="h-5 w-5" />
@@ -198,9 +193,9 @@ export default function ChatSidebar({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`block w-full pl-10 pr-10 py-2 border ${
-                darkMode 
-                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                  : 'border-gray-300 text-gray-900 placeholder-gray-500'
+                darkMode
+                  ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                  : "border-gray-300 text-gray-900 placeholder-gray-500"
               } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
               placeholder="Search chats..."
             />
@@ -234,30 +229,33 @@ export default function ChatSidebar({
                 Clear
               </button>
             </div>
-            {searchResults.map((result) => (
+            {searchResults.map((result, idx) => (
               <div
-                key={`${result.sessionId}-${result.timestamp}`}
+                key={`${result._id}-${idx}`}
                 className={`p-3 text-sm rounded-lg mb-1 cursor-pointer ${
-                  result.sessionId === currentSessionId
+                  result._id === currentSessionId
                     ? darkMode
-                      ? 'bg-gray-700'
-                      : 'bg-gray-100'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                      ? "bg-gray-700"
+                      : "bg-gray-100"
+                    : "hover:bg-gray-100 dark:hover:bg-gray-700"
                 }`}
                 onClick={() => {
-                  onSelectSession(result.sessionId);
+                  onSelectSession(result._id);
                   setSearchResults(null);
                   setSearchQuery("");
                 }}
               >
                 <div className="font-medium line-clamp-1">
-                  {sessions.find(s => s.id === result.sessionId)?.name || 'Untitled Chat'}
+                  {sessions.find((s) => s._id === result._id)?.sessionName ||
+                    "Untitled Chat"}
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {new Date(result.timestamp).toLocaleString()}
+                  {new Date(
+                    result.matches?.[0]?.createdAt || Date.now()
+                  ).toLocaleString()}
                 </div>
                 <div className="text-sm mt-1 line-clamp-2 text-gray-600 dark:text-gray-300">
-                  {result.text}
+                  {result.matches?.[0]?.text || ""}
                 </div>
               </div>
             ))}
@@ -276,9 +274,9 @@ export default function ChatSidebar({
                   className={`group relative px-3 py-2 mx-2 my-1 rounded-lg cursor-pointer ${
                     session._id === currentSessionId
                       ? darkMode
-                        ? 'bg-gray-700'
-                        : 'bg-gray-100'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? "bg-gray-700"
+                        : "bg-gray-100"
+                      : "hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                   onClick={() => onSelectSession(session._id)}
                 >
@@ -289,37 +287,23 @@ export default function ChatSidebar({
                       value={editingName}
                       onChange={(e) => setEditingName(e.target.value)}
                       onBlur={(e) => handleUpdateSessionName(session._id, e)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleUpdateSessionName(session._id, e);
-                        } else if (e.key === 'Escape') {
-                          setEditingSessionId(null);
-                        }
-                      }}
+                      onKeyDown={(e) => handleKeyDown(e, session._id)}
                       className={`w-full bg-transparent border-b border-blue-500 outline-none ${
-                        darkMode ? 'text-white' : 'text-gray-900'
+                        darkMode ? "text-white" : "text-gray-900"
                       }`}
                       autoFocus
                     />
                   ) : (
                     <div className="flex items-center justify-between">
                       <span className="block truncate text-sm">
-                        {session.sessionName || `Chat ${new Date(session.lastMessageAt).toLocaleDateString()}`}
+                        {session.sessionName ||
+                          `Chat ${new Date(
+                            session.lastMessageAt
+                          ).toLocaleDateString()}`}
                       </span>
                       <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingSessionId(session._id);
-                            setEditingName(session.sessionName || '');
-                            // Focus the input after it's rendered
-                            setTimeout(() => {
-                              if (editInputRef.current) {
-                                editInputRef.current.focus();
-                                editInputRef.current.select();
-                              }
-                            }, 0);
-                          }}
+                          onClick={(e) => startEditing(session, e)}
                           className="p-1 text-gray-400 hover:text-blue-500 dark:hover:text-blue-400"
                         >
                           <PencilIcon className="h-4 w-4" />
@@ -341,10 +325,10 @@ export default function ChatSidebar({
       </div>
 
       {/* Footer */}
-      <div className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+      <div className={`p-4 border-t ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-500 dark:text-gray-400">
-            {sessions.length} {sessions.length === 1 ? 'chat' : 'chats'}
+            {sessions.length} {sessions.length === 1 ? "chat" : "chats"}
           </span>
           <button
             onClick={fetchSessions}
