@@ -1,14 +1,15 @@
 import { useState, useRef, useEffect, useContext } from 'react';
 import { Send, Mic } from 'lucide-react';
-import { ThemeContext } from '../App'; // Changed from AppContext to ThemeContext
+import { ThemeContext } from '../App';
 
 export default function MessageInput({ onSend, disabled, isLoading }) {
   const [text, setText] = useState('');
   const [listening, setListening] = useState(false);
-  const { lang, city, setCity, darkMode } = useContext(ThemeContext); // Changed from AppContext to ThemeContext
+  const { lang, city, setCity, darkMode } = useContext(ThemeContext);
   const textareaRef = useRef(null);
   const recognitionRef = useRef(null);
 
+  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -20,6 +21,8 @@ export default function MessageInput({ onSend, disabled, isLoading }) {
   const handleSubmit = (e) => {
     e?.preventDefault();
     if (!text.trim() || disabled || isLoading) return;
+    
+    // Send message to parent component
     onSend(text.trim());
     setText('');
   };
@@ -31,6 +34,7 @@ export default function MessageInput({ onSend, disabled, isLoading }) {
     }
   };
 
+  // Voice recognition functionality
   const startListening = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       alert('Speech recognition is not supported in your browser. Please use Chrome or Edge.');
@@ -39,7 +43,7 @@ export default function MessageInput({ onSend, disabled, isLoading }) {
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    
+
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.lang = lang;
@@ -52,7 +56,7 @@ export default function MessageInput({ onSend, disabled, isLoading }) {
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
       console.log('Transcript:', transcript);
-      setText(prev => prev + (prev ? ' ' : '') + transcript);
+      setText(prev => prev ? `${prev} ${transcript}` : transcript);
     };
 
     recognition.onerror = (event) => {
@@ -131,10 +135,10 @@ export default function MessageInput({ onSend, disabled, isLoading }) {
           onClick={toggleListening}
           disabled={disabled || isLoading}
           className={`p-2 rounded-lg transition-colors ${
-            listening
-              ? 'bg-red-500 hover:bg-red-600 text-white'
-              : darkMode
-                ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+            listening 
+              ? 'bg-red-500 hover:bg-red-600 text-white' 
+              : darkMode 
+                ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
                 : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
           } ${disabled || isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           title={listening ? 'Stop listening' : 'Start voice input'}
