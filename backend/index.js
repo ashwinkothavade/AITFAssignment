@@ -8,7 +8,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Server running on ${PORT}`));
+
 // Middleware
 app.use(cors({
   origin: [/\.vercel\.app$/, 'http://localhost:3000'],
@@ -19,7 +19,7 @@ app.use(express.json());
 // API routes
 app.use("/api", apiRoutes);
 
-// MongoDB connection
+// MongoDB connection, start server ONLY once here
 mongoose
   .connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
@@ -27,10 +27,12 @@ mongoose
   })
   .then(() => {
     console.log("MongoDB connected");
-    app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on port ${PORT}`);
     });
   })
   .catch((err) => {
     console.error("MongoDB connection error:", err);
+    // Optionally exit so Render marks deploy failed and shows logs
+    process.exit(1);
   });
