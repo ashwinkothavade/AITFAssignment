@@ -550,21 +550,21 @@ router.get("/", (req, res) => {
   res.send("API is running with conversation memory");
 });
 
-router.delete('/sessions/:sessionId', async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const result = await Chat.deleteMany({ sessionId });
+// router.delete('/sessions/:sessionId', async (req, res) => {
+//   try {
+//     const { sessionId } = req.params;
+//     const result = await Chat.deleteMany({ sessionId });
 
-    if (!result || result.deletedCount === 0) {
-      return res.status(404).json({ ok: false, error: 'Session not found' });
-    }
+//     if (!result || result.deletedCount === 0) {
+//       return res.status(404).json({ ok: false, error: 'Session not found' });
+//     }
 
-    return res.json({ ok: true, deleted: result.deletedCount, sessionId });
-  } catch (err) {
-    console.error('Error deleting session:', err);
-    return res.status(500).json({ ok: false, error: err.message });
-  }
-});
+//     return res.json({ ok: true, deleted: result.deletedCount, sessionId });
+//   } catch (err) {
+//     console.error('Error deleting session:', err);
+//     return res.status(500).json({ ok: false, error: err.message });
+//   }
+// });
 // --- GET /api/chats?sessionId=...&search=... ---
 router.get("/chats", async (req, res) => {
   try {
