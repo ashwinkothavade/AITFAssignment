@@ -1,0 +1,22 @@
+Hi, this is our technical test. Please read and start.
+
+Purpose: To gain a deeper understanding of your interest in and motivation to learn about cutting-edge technology such as generative AI.
+
+Assignment: Create a chatbot that combines a free, publicly available weather API with generative AI and supports voice input. 
+- The theme is flexible: travel, outings, fashion, music, agriculture, sports, or anything else you’d like AI to suggest. 
+- Submission deadline: Friday, September 26, 20:00 IST. 
+- If you finish early, please submit then. If incomplete, submit whatever you have by the deadline.
+
+Guidelines: 
+- Evaluation criteria: both technical skills and exploratory attitude will be assessed. 
+- ⁠Target users / use cases: up to you. 
+- ⁠Core functional requirements: Japanese voice input (mandatory), weather retrieval, proposal generation by generative AI. 
+- ⁠Non-functional requirements: none specified. 
+- ⁠Weather API: your choice. Generative AI / LLM: any model of your choice (cost to be borne by you). 
+- ⁠Tech stack: your choice.
+
+Deliverables: 
+(1) A working demo URL or a video 
+(2) Source code (GitHub repository preferred).
+
+Other notes: Interim reports are not required.
