@@ -230,14 +230,6 @@ IMPORTANT: Incorporate this real-time weather data naturally into your response.
       // Add language instruction
       const langInstructions = {
         "ja": "\n\nPlease respond in Japanese (日本語で返信してください).",
-        "es": "\n\nPlease respond in Spanish.",
-        "fr": "\n\nPlease respond in French.",
-        "de": "\n\nPlease respond in German.",
-        "ko": "\n\nPlease respond in Korean (한국어로 답변해 주세요).",
-        "zh": "\n\nPlease respond in Chinese (请用中文回复).",
-        "it": "\n\nPlease respond in Italian.",
-        "pt": "\n\nPlease respond in Portuguese.",
-        "ru": "\n\nPlease respond in Russian."
       };
 
       const langCode = lang.split('-')[0];

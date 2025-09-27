@@ -1,8 +1,8 @@
 import { useContext } from 'react';
-import { ThemeContext } from '../App'; // Changed from AppContext to ThemeContext
+import { ThemeContext } from '../App';
 
 export default function EmptyChat() {
-  const { theme } = useContext(ThemeContext); // Changed from AppContext to ThemeContext
+  const { theme, darkMode } = useContext(ThemeContext); // Added darkMode here
   
   const suggestions = {
     travel: [
@@ -40,14 +40,20 @@ export default function EmptyChat() {
   const currentSuggestions = suggestions[theme] || suggestions.travel;
 
   return (
-    <div className="flex-1 flex items-center justify-center p-8">
+    <div className={`flex-1 flex items-center justify-center p-8 ${
+      darkMode ? 'bg-gray-900' : 'bg-gray-50'
+    }`}>
       <div className="text-center max-w-2xl">
         <div className="mb-8">
           <div className="text-6xl mb-4">🌤️</div>
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+          <h2 className={`text-2xl font-bold mb-2 ${
+            darkMode ? 'text-white' : 'text-gray-800'
+          }`}>
             Weather Assistant
           </h2>
-          <p className="text-gray-600 dark:text-gray-300">
+          <p className={`${
+            darkMode ? 'text-gray-300' : 'text-gray-600'
+          }`}>
             Ask me anything about weather and I'll provide personalized {theme} recommendations
           </p>
         </div>
@@ -56,13 +62,19 @@ export default function EmptyChat() {
           {currentSuggestions.map((suggestion, index) => (
             <div
               key={index}
-              className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+              className={`p-4 rounded-lg cursor-pointer transition-colors ${
+                darkMode 
+                  ? 'bg-gray-800 hover:bg-gray-700' 
+                  : 'bg-gray-50 hover:bg-gray-100'
+              }`}
               onClick={() => {
                 // You can add a function to handle suggestion clicks
                 // onSuggestionClick(suggestion);
               }}
             >
-              <p className="text-sm text-gray-700 dark:text-gray-300">
+              <p className={`text-sm ${
+                darkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 "{suggestion}"
               </p>
             </div>
